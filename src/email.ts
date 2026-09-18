@@ -69,7 +69,7 @@ export async function fetchMessage(account: AccountConfig, mailbox: string, uid:
     const lock = await client.getMailboxLock(mailbox);
     try {
       const message = await client.fetchOne(uid, { source: true, envelope: true, flags: true }, { uid: true });
-      if (!message?.source) throw new Error(`Email not found: ${mailbox}/${uid}`);
+      if (message === false || !message.source) throw new Error(`Email not found: ${mailbox}/${uid}`);
       return message;
     } finally {
       lock.release();
@@ -96,11 +96,9 @@ export async function moveMessage(account: AccountConfig, sourceMailbox: string,
     try {
       try {
         await client.messageMove(uid, targetMailbox, { uid: true });
-      } catch (error) {
+      } catch {
         await client.messageCopy(uid, targetMailbox, { uid: true });
-        await client.messageFlagsAdd(uid, ['\\Deleted'], { uid: true });
-        await client.mailboxExpunge(sourceMailbox, { uid: true });
-        if (error instanceof Error && !error.message) throw error;
+        await client.messageDelete(uid, { uid: true });
       }
       return { sourceMailbox, targetMailbox, uid };
     } finally {
