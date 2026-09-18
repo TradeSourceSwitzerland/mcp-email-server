@@ -1,0 +1,27 @@
+{
+  "name": "mcp-email-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Secure MCP server for the TradeSource email accounts.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/src/http.js",
+    "start:stdio": "node dist/src/stdio.js",
+    "dev": "tsx src/http.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.18.0",
+    "dotenv": "^17.2.2",
+    "imapflow": "^1.0.181",
+    "mailparser": "^3.7.4",
+    "nodemailer": "^7.0.6",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.2"
+  }
+}
