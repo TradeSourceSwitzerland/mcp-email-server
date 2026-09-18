@@ -90,6 +90,30 @@ export async function setMessageFlag(account: AccountConfig, mailbox: string, ui
   });
 }
 
+export const appleMailColorKeywords = {
+  purple: ['$MailFlagBit0', '$MailFlagBit1', '$MailFlagBit2'],
+  none: ['$MailFlagBit0', '$MailFlagBit1', '$MailFlagBit2']
+} as const;
+
+export function appleMailColorOperations(color: keyof typeof appleMailColorKeywords) {
+  if (color === 'purple') return { add: ['$MailFlagBit0', '$MailFlagBit2'], remove: ['$MailFlagBit1'] };
+  return { add: [], remove: appleMailColorKeywords.none };
+}
+
+export async function setMessageColor(account: AccountConfig, mailbox: string, uid: number, color: keyof typeof appleMailColorKeywords) {
+  return withImap(account, async (client) => {
+    const lock = await client.getMailboxLock(mailbox);
+    try {
+      const operations = appleMailColorOperations(color);
+      if (operations.add.length) await client.messageFlagsAdd(uid, operations.add, { uid: true });
+      if (operations.remove.length) await client.messageFlagsRemove(uid, operations.remove, { uid: true });
+      return { mailbox, uid, color, ...operations };
+    } finally {
+      lock.release();
+    }
+  });
+}
+
 export async function moveMessage(account: AccountConfig, sourceMailbox: string, uid: number, targetMailbox: string) {
   return withImap(account, async (client) => {
     const sourceLock = await client.getMailboxLock(sourceMailbox);

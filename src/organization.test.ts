@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { appleMailColorOperations } from './email.js';
 import { classifySubjectAndSender, duplicateMandateUids, extractMandateData } from './organization.js';
 
 test('classifies mandate requests and insurer correspondence', () => {
@@ -30,4 +31,15 @@ test('keeps the first mandate and marks later same-name-and-birth-date messages 
     { uid: 5674, name: 'Albiona', birthDate: '04.09.1991', date: 3 },
     { uid: 5675, name: 'Albiona', birthDate: '04.09.1991', date: 4 }
   ])], [5670, 5675]);
+});
+
+test('maps Apple Mail purple and none colors to keyword flags', () => {
+  assert.deepEqual(appleMailColorOperations('purple'), {
+    add: ['$MailFlagBit0', '$MailFlagBit2'],
+    remove: ['$MailFlagBit1']
+  });
+  assert.deepEqual(appleMailColorOperations('none'), {
+    add: [],
+    remove: ['$MailFlagBit0', '$MailFlagBit1', '$MailFlagBit2']
+  });
 });
