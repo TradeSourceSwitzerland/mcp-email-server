@@ -1,0 +1,44 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { buildSentMessage, findSentMailbox } from './email.js';
+
+test('findSentMailbox picks the mailbox with the special-use \Sent flag', () => {
+  const mailbox = findSentMailbox([
+    { path: 'INBOX', specialUse: '' },
+    { path: 'Sent Items', specialUse: 'INBOX\\Sent' },
+    { path: 'Archive', specialUse: '\\Archive' },
+    { path: 'Sent', specialUse: '\\Sent' }
+  ]);
+
+  assert.equal(mailbox, 'Sent');
+});
+
+test('buildSentMessage contains a valid RFC822-like set of headers and body', () => {
+  const raw = buildSentMessage({
+    from: 'info@tradesource.ch',
+    to: 'hello@example.com',
+    cc: 'ops@example.com',
+    subject: 'Test email',
+    text: 'Hello world',
+    date: '2026-09-18T12:34:56.000Z',
+    messageId: '<abc123@example.com>'
+  });
+
+  assert.match(raw, /^From: info@tradesource\.ch\r\n/);
+  assert.match(raw, /\r\nTo: hello@example\.com\r\n/);
+  assert.match(raw, /\r\nCc: ops@example\.com\r\n/);
+  assert.match(raw, /\r\nSubject: Test email\r\n/);
+  assert.match(raw, /\r\nDate: Fri, 18 Sep 2026 12:34:56 GMT\r\n/);
+  assert.match(raw, /\r\nMessage-ID: <abc123@example\.com>\r\n/);
+  assert.match(raw, /\r\n\r\nHello world$/);
+});
+
+test('findSentMailbox falls back to the Sent folder name when the server does not expose specialUse values', () => {
+  const mailbox = findSentMailbox([
+    { path: 'INBOX' },
+    { path: 'Sent' }
+  ]);
+
+  assert.equal(mailbox, 'Sent');
+});
+
