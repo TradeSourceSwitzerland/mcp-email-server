@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { appleMailColorOperations, decodeAttachments } from './email.js';
+import { appleMailColorOperations, decodeAttachments, MAX_ATTACHMENT_TOTAL_BYTES, selectForwardAttachments } from './email.js';
 import { classifySubjectAndSender, duplicateMandateUids, extractMandateData } from './organization.js';
 
 test('classifies mandate requests and insurer correspondence', () => {
@@ -48,4 +48,15 @@ test('decodes valid Base64 attachments and rejects invalid content', () => {
   const attachments = decodeAttachments([{ filename: 'mandat.pdf', contentType: 'application/pdf', base64: 'cGRm' }]);
   assert.equal(attachments?.[0].content.toString(), 'pdf');
   assert.throws(() => decodeAttachments([{ filename: 'invalid.pdf', base64: 'not valid Base64!' }]), /Invalid Base64 attachment/);
+});
+
+test('selects all or requested forwarded attachments and rejects invalid indexes', () => {
+  const source = [{ filename: 'first.pdf', contentType: 'application/pdf', content: Buffer.from('first') }, { filename: 'second.pdf', contentType: 'application/pdf', content: Buffer.from('second') }];
+  assert.deepEqual(selectForwardAttachments(source).map((attachment) => attachment.filename), ['first.pdf', 'second.pdf']);
+  assert.deepEqual(selectForwardAttachments(source, [1]).map((attachment) => attachment.filename), ['second.pdf']);
+  assert.throws(() => selectForwardAttachments(source, [2]), /index 2 is out of range/);
+});
+
+test('rejects forwarded attachments above the combined size limit', () => {
+  assert.throws(() => selectForwardAttachments([{ filename: 'large.pdf', content: Buffer.alloc(MAX_ATTACHMENT_TOTAL_BYTES + 1) }]), /Attachments too large/);
 });

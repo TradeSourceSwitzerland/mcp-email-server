@@ -6,20 +6,36 @@ import type { AccountConfig } from './config.js';
 
 type AttachmentInfo = { filename?: string; contentType: string; size: number };
 export type OutgoingAttachment = { filename: string; contentType?: string; content: Buffer };
+type IncomingAttachment = { filename?: string; contentType?: string; content?: Buffer };
 export const MAX_ATTACHMENTS = 10;
 export const MAX_ATTACHMENT_TOTAL_BYTES = 18 * 1024 * 1024;
 
+export function validateAttachmentLimits(attachments: OutgoingAttachment[]) {
+  if (attachments.length > MAX_ATTACHMENTS) throw new Error(`Too many attachments (max ${MAX_ATTACHMENTS})`);
+  const totalBytes = attachments.reduce((sum, attachment) => sum + attachment.content.length, 0);
+  if (totalBytes > MAX_ATTACHMENT_TOTAL_BYTES) throw new Error(`Attachments too large: ${(totalBytes / (1024 * 1024)).toFixed(1)}MB exceeds the ${MAX_ATTACHMENT_TOTAL_BYTES / (1024 * 1024)}MB limit`);
+  return attachments;
+}
+
+export function selectForwardAttachments(attachments: IncomingAttachment[], indexes?: number[]): OutgoingAttachment[] {
+  const selectedIndexes = indexes ?? attachments.map((_, index) => index);
+  const selected = selectedIndexes.map((index) => {
+    const attachment = attachments[index];
+    if (!attachment) throw new Error(`Attachment index ${index} is out of range; message has ${attachments.length} attachments`);
+    if (!attachment.content) throw new Error(`Attachment index ${index} has no content`);
+    return { filename: attachment.filename ?? `attachment-${index + 1}`, contentType: attachment.contentType, content: attachment.content };
+  });
+  return validateAttachmentLimits(selected);
+}
+
 export function decodeAttachments(attachments?: { filename: string; contentType?: string; base64: string }[]): OutgoingAttachment[] | undefined {
   if (!attachments?.length) return undefined;
-  if (attachments.length > MAX_ATTACHMENTS) throw new Error(`Too many attachments (max ${MAX_ATTACHMENTS})`);
   const decoded = attachments.map(({ filename, contentType, base64 }) => {
     const normalized = base64.replace(/\s/g, '');
     if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(normalized)) throw new Error(`Invalid Base64 attachment: ${filename}`);
     return { filename, contentType, content: Buffer.from(normalized, 'base64') };
   });
-  const totalBytes = decoded.reduce((sum, attachment) => sum + attachment.content.length, 0);
-  if (totalBytes > MAX_ATTACHMENT_TOTAL_BYTES) throw new Error(`Attachments too large: ${(totalBytes / (1024 * 1024)).toFixed(1)}MB exceeds the ${MAX_ATTACHMENT_TOTAL_BYTES / (1024 * 1024)}MB limit`);
-  return decoded;
+  return validateAttachmentLimits(decoded);
 }
 
 export function withImap<T>(account: AccountConfig, fn: (client: ImapFlow) => Promise<T>): Promise<T> {

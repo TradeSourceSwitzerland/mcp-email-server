@@ -7,7 +7,7 @@ Secure, self-hostable MCP server for connecting Claude to `info@tradesource.ch` 
 - Read and search emails
 - List folders and attachment metadata
 - Create drafts in the `Drafts` folder
-- Send emails with optional attachments and archive copies in the IMAP `Sent` folder
+- Send emails with optional attachments, or forward existing messages server-side, and archive copies in the IMAP `Sent` folder
 - Set flags, move messages to folders, and move messages to `Trash` instead of permanently deleting them
 - Create mailboxes and download attachments as Base64
 - Classify, organize, deduplicate, and extract data from mandate requests
@@ -21,7 +21,7 @@ The organization tools use UID-based IMAP operations. `auto_organize` creates an
 
 ## Attachments
 
-`send_email` accepts optional attachments shaped as `{ filename, contentType?, base64 }`. A maximum of 10 files with a combined decoded size of 18 MB is accepted. Use `download_attachment` to retrieve a source attachment as Base64, then pass it to `send_email`; the outgoing message and its IMAP `Sent` copy contain the same files.
+`send_email` accepts optional attachments shaped as `{ filename, contentType?, base64 }`. A maximum of 10 files with a combined decoded size of 18 MB is accepted. Use inline attachments only for files created by the caller. To forward existing email attachments without transferring their bytes through MCP, use `forward_email`; it reads the source message and selected attachment indexes server-side, sends them with a covering note, and archives the same message in `Sent`. Do not use `download_attachment` as an intermediate forwarding step.
 
 ## Local setup
 
