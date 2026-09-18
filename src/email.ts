@@ -93,7 +93,7 @@ export async function setMessageFlag(account: AccountConfig, mailbox: string, ui
 export const appleMailColorKeywords = {
   purple: ['$MailFlagBit0', '$MailFlagBit1', '$MailFlagBit2'],
   none: ['$MailFlagBit0', '$MailFlagBit1', '$MailFlagBit2']
-} as const;
+};
 
 export function appleMailColorOperations(color: keyof typeof appleMailColorKeywords) {
   if (color === 'purple') return { add: ['$MailFlagBit0', '$MailFlagBit2'], remove: ['$MailFlagBit1'] };
