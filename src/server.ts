@@ -19,7 +19,9 @@ function json(value: unknown) { return { content: [{ type: 'text' as const, text
 
 async function readParsed(account: ReturnType<typeof getAccount>, mailbox: string, uid: number) {
   const message = await fetchMessage(account, mailbox, uid);
-  return { message, parsed: await parseMessageDetails(message.source) };
+  const source = message.source;
+  if (!source) throw new Error(`Email source unavailable: ${mailbox}/${uid}`);
+  return { message, parsed: await parseMessageDetails(source) };
 }
 
 async function resolveMailbox(account: ReturnType<typeof getAccount>, name: string, specialName?: 'Sent' | 'Drafts' | 'Trash') {
