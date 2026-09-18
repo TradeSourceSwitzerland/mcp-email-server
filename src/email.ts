@@ -22,6 +22,11 @@ export async function parseMessage(raw: Buffer | string) {
   };
 }
 
+export async function parseMessageDetails(raw: Buffer | string) {
+  const parsed = await simpleParser(raw);
+  return parsed;
+}
+
 export function smtp(account: AccountConfig) {
   return nodemailer.createTransport({ host: account.smtp.host, port: account.smtp.port, secure: account.smtp.secure, auth: { user: account.smtp.user, pass: account.smtp.password } });
 }
@@ -53,6 +58,88 @@ export async function appendSentCopy(account: AccountConfig, message: Buffer) {
     const lock = await client.getMailboxLock(sent.path);
     try {
       return await client.append(sent.path, message, ['\\Seen']);
+    } finally {
+      lock.release();
+    }
+  });
+}
+
+export async function fetchMessage(account: AccountConfig, mailbox: string, uid: number) {
+  return withImap(account, async (client) => {
+    const lock = await client.getMailboxLock(mailbox);
+    try {
+      const message = await client.fetchOne(uid, { source: true, envelope: true, flags: true }, { uid: true });
+      if (!message?.source) throw new Error(`Email not found: ${mailbox}/${uid}`);
+      return message;
+    } finally {
+      lock.release();
+    }
+  });
+}
+
+export async function setMessageFlag(account: AccountConfig, mailbox: string, uid: number, flag: string, enabled: boolean) {
+  return withImap(account, async (client) => {
+    const lock = await client.getMailboxLock(mailbox);
+    try {
+      if (enabled) await client.messageFlagsAdd(uid, [flag], { uid: true });
+      else await client.messageFlagsRemove(uid, [flag], { uid: true });
+      return { mailbox, uid, flag, enabled };
+    } finally {
+      lock.release();
+    }
+  });
+}
+
+export async function moveMessage(account: AccountConfig, sourceMailbox: string, uid: number, targetMailbox: string) {
+  return withImap(account, async (client) => {
+    const sourceLock = await client.getMailboxLock(sourceMailbox);
+    try {
+      try {
+        await client.messageMove(uid, targetMailbox, { uid: true });
+      } catch (error) {
+        await client.messageCopy(uid, targetMailbox, { uid: true });
+        await client.messageFlagsAdd(uid, ['\\Deleted'], { uid: true });
+        await client.mailboxExpunge(sourceMailbox, { uid: true });
+        if (error instanceof Error && !error.message) throw error;
+      }
+      return { sourceMailbox, targetMailbox, uid };
+    } finally {
+      sourceLock.release();
+    }
+  });
+}
+
+export async function createMailbox(account: AccountConfig, mailbox: string) {
+  return withImap(account, async (client) => {
+    const boxes = await client.list();
+    const existing = boxes.find((box) => box.path.toLowerCase() === mailbox.toLowerCase());
+    if (existing) return { mailbox: existing.path, created: false };
+    const parts = mailbox.split('/').filter(Boolean);
+    let current = '';
+    let created = false;
+    for (const part of parts) {
+      current = current ? `${current}/${part}` : part;
+      if (!boxes.some((box) => box.path.toLowerCase() === current.toLowerCase())) {
+        await client.mailboxCreate(current);
+        created = true;
+      }
+    }
+    return { mailbox, created };
+  });
+}
+
+export async function appendToMailbox(account: AccountConfig, mailbox: string, message: Buffer, flags: string[] = []) {
+  return withImap(account, async (client) => client.append(mailbox, message, flags));
+}
+
+export async function listMessageUids(account: AccountConfig, mailbox: string, since?: Date) {
+  return withImap(account, async (client) => {
+    const lock = await client.getMailboxLock(mailbox);
+    try {
+      const query: Record<string, unknown> = since ? { since } : { all: true };
+      const uids: number[] = [];
+      for await (const message of client.fetch(query, { uid: true }, { uid: true })) uids.push(message.uid);
+      return uids;
     } finally {
       lock.release();
     }

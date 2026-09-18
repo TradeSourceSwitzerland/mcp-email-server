@@ -7,9 +7,17 @@ Secure, self-hostable MCP server for connecting Claude to `info@tradesource.ch` 
 - Read and search emails
 - List folders and attachment metadata
 - Create drafts in the `Drafts` folder
-- Send emails
+- Send emails and archive copies in the IMAP `Sent` folder
+- Set flags, move messages to folders, and move messages to `Trash` instead of permanently deleting them
+- Create mailboxes and download attachments as Base64
+- Classify, organize, deduplicate, and extract data from mandate requests
+- Record sent-mail metadata in the `Gesendet-Protokoll` IMAP folder
 
-The server intentionally has **no delete or move tools**. Credentials are read only from environment variables and must never be committed.
+All destructive operations are reversible at the mailbox level: `delete_email` moves a message to the IMAP `Trash` folder and never permanently deletes it. Credentials are read only from environment variables and must never be committed.
+
+## Organization tools
+
+The organization tools use UID-based IMAP operations. `auto_organize` creates and uses `Mandate/Neu`, `Mandate/Antworten`, `Versicherer`, and `Spam-Verdacht`; duplicate mandate requests are moved to `Mandate/Duplikat`. `list_open_mandates` only returns unread mandate requests from the selected mailbox.
 
 ## Local setup
 
