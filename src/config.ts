@@ -25,7 +25,7 @@ function account(n: number): AccountConfig | null {
 }
 
 export const config = {
-  host: process.env.HOST ?? '127.0.0.1',
+  host: process.env.HOST ?? '0.0.0.0',
   port: Number(process.env.PORT ?? 8787),
   bearerToken: process.env.MCP_BEARER_TOKEN ?? '',
   allowSend: (process.env.ALLOW_SEND ?? 'false') === 'true',
