@@ -25,3 +25,36 @@ export async function parseMessage(raw: Buffer | string) {
 export function smtp(account: AccountConfig) {
   return nodemailer.createTransport({ host: account.smtp.host, port: account.smtp.port, secure: account.smtp.secure, auth: { user: account.smtp.user, pass: account.smtp.password } });
 }
+
+function headerValue(value: string) {
+  return value.replace(/[\r\n]/g, ' ').trim();
+}
+
+export function buildSentMessage({ from, to, cc, subject, text, messageId, date = new Date() }: { from: string; to: string; cc?: string; subject: string; text: string; messageId?: string; date?: Date }) {
+  const headers = [
+    `From: ${headerValue(from)}`,
+    `To: ${headerValue(to)}`,
+    cc ? `Cc: ${headerValue(cc)}` : '',
+    `Subject: ${headerValue(subject)}`,
+    `Date: ${date.toUTCString()}`,
+    messageId ? `Message-ID: ${headerValue(messageId)}` : '',
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset=utf-8',
+    'Content-Transfer-Encoding: 8bit'
+  ].filter(Boolean);
+  return Buffer.from(`${headers.join('\r\n')}\r\n\r\n${text}\r\n`, 'utf8');
+}
+
+export async function appendSentCopy(account: AccountConfig, message: Buffer) {
+  return withImap(account, async (client) => {
+    const boxes = await client.list();
+    const sent = boxes.find((box) => box.path.toLowerCase() === 'sent' || /sent/i.test(box.specialUse ?? ''));
+    if (!sent) throw new Error('Sent mailbox not found');
+    const lock = await client.getMailboxLock(sent.path);
+    try {
+      return await client.append(sent.path, message, ['\\Seen']);
+    } finally {
+      lock.release();
+    }
+  });
+}
