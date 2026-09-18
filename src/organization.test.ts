@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { appleMailColorOperations } from './email.js';
+import { appleMailColorOperations, decodeAttachments } from './email.js';
 import { classifySubjectAndSender, duplicateMandateUids, extractMandateData } from './organization.js';
 
 test('classifies mandate requests and insurer correspondence', () => {
@@ -42,4 +42,10 @@ test('maps Apple Mail purple and none colors to keyword flags', () => {
     add: [],
     remove: ['$MailFlagBit0', '$MailFlagBit1', '$MailFlagBit2']
   });
+});
+
+test('decodes valid Base64 attachments and rejects invalid content', () => {
+  const attachments = decodeAttachments([{ filename: 'mandat.pdf', contentType: 'application/pdf', base64: 'cGRm' }]);
+  assert.equal(attachments?.[0].content.toString(), 'pdf');
+  assert.throws(() => decodeAttachments([{ filename: 'invalid.pdf', base64: 'not valid Base64!' }]), /Invalid Base64 attachment/);
 });

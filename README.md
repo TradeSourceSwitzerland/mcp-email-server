@@ -7,7 +7,7 @@ Secure, self-hostable MCP server for connecting Claude to `info@tradesource.ch` 
 - Read and search emails
 - List folders and attachment metadata
 - Create drafts in the `Drafts` folder
-- Send emails and archive copies in the IMAP `Sent` folder
+- Send emails with optional attachments and archive copies in the IMAP `Sent` folder
 - Set flags, move messages to folders, and move messages to `Trash` instead of permanently deleting them
 - Create mailboxes and download attachments as Base64
 - Classify, organize, deduplicate, and extract data from mandate requests
@@ -18,6 +18,10 @@ All destructive operations are reversible at the mailbox level: `delete_email` m
 ## Organization tools
 
 The organization tools use UID-based IMAP operations. `auto_organize` creates and uses `Mandate/Neu`, `Mandate/Antworten`, `Versicherer`, and `Spam-Verdacht`; duplicate mandate requests are moved to `Mandate/Duplikat`. `list_open_mandates` only returns unread mandate requests from the selected mailbox.
+
+## Attachments
+
+`send_email` accepts optional attachments shaped as `{ filename, contentType?, base64 }`. A maximum of 10 files with a combined decoded size of 18 MB is accepted. Use `download_attachment` to retrieve a source attachment as Base64, then pass it to `send_email`; the outgoing message and its IMAP `Sent` copy contain the same files.
 
 ## Local setup
 
