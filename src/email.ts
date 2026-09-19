@@ -157,14 +157,14 @@ export async function setMessageFlag(account: AccountConfig, mailbox: string, ui
   });
 }
 
-export const appleMailColorKeywords = {
+export const appleMailColorKeywords: Record<'purple' | 'none', string[]> = {
   purple: ['$MailFlagBit0', '$MailFlagBit1', '$MailFlagBit2'],
   none: ['$MailFlagBit0', '$MailFlagBit1', '$MailFlagBit2']
 };
 
 export function appleMailColorOperations(color: keyof typeof appleMailColorKeywords) {
   if (color === 'purple') return { add: ['$MailFlagBit0', '$MailFlagBit2'], remove: ['$MailFlagBit1'] };
-  return { add: [], remove: appleMailColorKeywords.none };
+  return { add: [], remove: [...appleMailColorKeywords.none] };
 }
 
 export async function setMessageColor(account: AccountConfig, mailbox: string, uid: number, color: keyof typeof appleMailColorKeywords) {

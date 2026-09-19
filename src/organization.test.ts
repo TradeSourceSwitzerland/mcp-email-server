@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { appleMailColorOperations, decodeAttachments, MAX_ATTACHMENT_TOTAL_BYTES, selectForwardAttachments } from './email.js';
+import { appleMailColorOperations, buildSentMessage, decodeAttachments, MAX_ATTACHMENT_TOTAL_BYTES, selectForwardAttachments } from './email.js';
 import { classifySubjectAndSender, duplicateMandateUids, extractMandateData } from './organization.js';
 
 test('classifies mandate requests and insurer correspondence', () => {
@@ -59,4 +59,18 @@ test('selects all or requested forwarded attachments and rejects invalid indexes
 
 test('rejects forwarded attachments above the combined size limit', () => {
   assert.throws(() => selectForwardAttachments([{ filename: 'large.pdf', content: Buffer.alloc(MAX_ATTACHMENT_TOTAL_BYTES + 1) }]), /Attachments too large/);
+});
+
+test('builds HTML emails with a proper content type', () => {
+  const message = buildSentMessage({
+    from: 'info@example.com',
+    to: 'kunde@example.com',
+    subject: 'Kalla-Vorlage',
+    text: 'Hallo',
+    html: '<html><body><p>Hallo</p></body></html>',
+    messageId: '<test@example.com>'
+  });
+  const content = message.toString('utf8');
+  assert.match(content, /Content-Type: text\/html; charset=utf-8/i);
+  assert.match(content, /<html><body><p>Hallo<\/p><\/body><\/html>/i);
 });
