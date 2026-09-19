@@ -68,14 +68,27 @@ function headerValue(value: string) {
   return value.replace(/[\r\n]/g, ' ').trim();
 }
 
+function encodeMimeWord(value: string) {
+  const sanitized = headerValue(value);
+  return /^[\x00-\x7F]*$/.test(sanitized) ? sanitized : `=?UTF-8?B?${Buffer.from(sanitized, 'utf8').toString('base64')}?=`;
+}
+
+function encodeAddressHeader(value: string) {
+  const sanitized = headerValue(value);
+  const match = sanitized.match(/^(.*?)\s*<([^<>]+)>$/);
+  if (!match) return sanitized;
+  const [, name, address] = match;
+  return `${encodeMimeWord(name.trim())} <${address}>`;
+}
+
 export function buildSentMessage({ from, to, cc, subject, text, html, messageId, date = new Date() }: { from: string; to: string; cc?: string; subject: string; text?: string; html?: string; messageId?: string; date?: Date }) {
   const plainText = text ?? '';
   const htmlBody = html ?? '';
   const headers = [
-    `From: ${headerValue(from)}`,
+    `From: ${encodeAddressHeader(from)}`,
     `To: ${headerValue(to)}`,
     cc ? `Cc: ${headerValue(cc)}` : '',
-    `Subject: ${headerValue(subject)}`,
+    `Subject: ${encodeMimeWord(subject)}`,
     `Date: ${date.toUTCString()}`,
     messageId ? `Message-ID: ${headerValue(messageId)}` : '',
     'MIME-Version: 1.0'
@@ -83,9 +96,8 @@ export function buildSentMessage({ from, to, cc, subject, text, html, messageId,
 
   if (htmlBody && plainText) {
     const boundary = `----=_Part_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    headers.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
     const body = [
-      `Content-Type: multipart/alternative; boundary="${boundary}"`,
-      '',
       `--${boundary}`,
       'Content-Type: text/plain; charset=utf-8',
       'Content-Transfer-Encoding: 8bit',

@@ -63,14 +63,22 @@ test('rejects forwarded attachments above the combined size limit', () => {
 
 test('builds HTML emails with a proper content type', () => {
   const message = buildSentMessage({
-    from: 'info@example.com',
+    from: 'Jörg Müller <info@example.com>',
     to: 'kunde@example.com',
-    subject: 'Kalla-Vorlage',
+    subject: 'Bestätigung',
     text: 'Hallo',
     html: '<html><body><p>Hallo</p></body></html>',
     messageId: '<test@example.com>'
   });
   const content = message.toString('utf8');
-  assert.match(content, /Content-Type: text\/html; charset=utf-8/i);
-  assert.match(content, /<html><body><p>Hallo<\/p><\/body><\/html>/i);
+  const headerEnd = content.indexOf('\r\n\r\n');
+  assert.notEqual(headerEnd, -1);
+  const headers = content.slice(0, headerEnd);
+  const body = content.slice(headerEnd + 4);
+  assert.match(headers, /Content-Type: multipart\/alternative; boundary="[^"]+"/i);
+  assert.match(headers, /Subject: =\?UTF-8\?B\?/i);
+  assert.match(headers, /From: =\?UTF-8\?B\?/i);
+  assert.doesNotMatch(body.split('\r\n')[0], /^Content-Type: multipart\/alternative/i);
+  assert.match(body, /Content-Type: text\/html; charset=utf-8/i);
+  assert.match(body, /<html><body><p>Hallo<\/p><\/body><\/html>/i);
 });
