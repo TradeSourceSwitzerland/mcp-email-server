@@ -68,7 +68,9 @@ function headerValue(value: string) {
   return value.replace(/[\r\n]/g, ' ').trim();
 }
 
-export function buildSentMessage({ from, to, cc, subject, text, messageId, date = new Date() }: { from: string; to: string; cc?: string; subject: string; text: string; messageId?: string; date?: Date }) {
+export function buildSentMessage({ from, to, cc, subject, text, html, messageId, date = new Date() }: { from: string; to: string; cc?: string; subject: string; text?: string; html?: string; messageId?: string; date?: Date }) {
+  const plainText = text ?? '';
+  const htmlBody = html ?? '';
   const headers = [
     `From: ${headerValue(from)}`,
     `To: ${headerValue(to)}`,
@@ -76,16 +78,42 @@ export function buildSentMessage({ from, to, cc, subject, text, messageId, date 
     `Subject: ${headerValue(subject)}`,
     `Date: ${date.toUTCString()}`,
     messageId ? `Message-ID: ${headerValue(messageId)}` : '',
-    'MIME-Version: 1.0',
-    'Content-Type: text/plain; charset=utf-8',
-    'Content-Transfer-Encoding: 8bit'
+    'MIME-Version: 1.0'
   ].filter(Boolean);
-  return Buffer.from(`${headers.join('\r\n')}\r\n\r\n${text}\r\n`, 'utf8');
+
+  if (htmlBody && plainText) {
+    const boundary = `----=_Part_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    const body = [
+      `Content-Type: multipart/alternative; boundary="${boundary}"`,
+      '',
+      `--${boundary}`,
+      'Content-Type: text/plain; charset=utf-8',
+      'Content-Transfer-Encoding: 8bit',
+      '',
+      plainText,
+      `--${boundary}`,
+      'Content-Type: text/html; charset=utf-8',
+      'Content-Transfer-Encoding: 8bit',
+      '',
+      htmlBody,
+      `--${boundary}--`,
+      ''
+    ].join('\r\n');
+    return Buffer.from(`${headers.join('\r\n')}\r\n\r\n${body}\r\n`, 'utf8');
+  }
+
+  if (htmlBody) {
+    headers.push('Content-Type: text/html; charset=utf-8', 'Content-Transfer-Encoding: 8bit');
+    return Buffer.from(`${headers.join('\r\n')}\r\n\r\n${htmlBody}\r\n`, 'utf8');
+  }
+
+  headers.push('Content-Type: text/plain; charset=utf-8', 'Content-Transfer-Encoding: 8bit');
+  return Buffer.from(`${headers.join('\r\n')}\r\n\r\n${plainText}\r\n`, 'utf8');
 }
 
-export async function buildSentMessageWithAttachments({ from, to, cc, subject, text, messageId, date = new Date(), attachments }: { from: string; to: string; cc?: string; subject: string; text: string; messageId?: string; date?: Date; attachments?: OutgoingAttachment[] }): Promise<Buffer> {
-  if (!attachments?.length) return buildSentMessage({ from, to, cc, subject, text, messageId, date });
-  const composer = new MailComposer({ from, to, cc, subject, text, messageId, date, attachments });
+export async function buildSentMessageWithAttachments({ from, to, cc, subject, text, html, messageId, date = new Date(), attachments }: { from: string; to: string; cc?: string; subject: string; text?: string; html?: string; messageId?: string; date?: Date; attachments?: OutgoingAttachment[] }): Promise<Buffer> {
+  if (!attachments?.length) return buildSentMessage({ from, to, cc, subject, text, html, messageId, date });
+  const composer = new MailComposer({ from, to, cc, subject, text, html, messageId, date, attachments });
   return new Promise((resolve, reject) => composer.compile().build((error, message) => error ? reject(error) : resolve(message)));
 }
 
